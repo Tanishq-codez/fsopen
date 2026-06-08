@@ -1,26 +1,24 @@
-import { useState } from 'react'
-
+import { useEffect, useState } from 'react'
+import nameService from "./services/names"
+import axios from 'axios'
 const App = () => {
-  const [persons, setPersons] = useState([
-    { name: 'Arto Hellas', number: '040-123456', id: 1 },
-    { name: 'Ada Lovelace', number: '39-44-5323523', id: 2 },
-    { name: 'Dan Abramov', number: '12-43-234345', id: 3 },
-    { name: 'Mary Poppendieck', number: '39-23-6423122', id: 4 }
-  ])
+  const [persons, setPersons] = useState([])
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
   const [filter, setFilter] = useState('')
-
+  
+  useEffect(()=>{
+   nameService.getAll().then(initialPerson => { 
+        setPersons(initialPerson)
+      })
+  } ,[])
   const addPerson = (event) => {
     event.preventDefault()
     
     // Check if the name already exists in the phonebook
     const nameExists = persons.some(person => person.name.toLowerCase() === newName.toLowerCase())
-
-    if (nameExists) {
-      alert(`${newName} is already added to phonebook`)
-      return
-    }
+    
+  
 
     const personObject = {
       name: newName,
@@ -28,9 +26,25 @@ const App = () => {
       id: persons.length + 1 // Temporary ID generation before server implementation
     }
 
-    setPersons(persons.concat(personObject))
-    setNewName('')
-    setNewNumber('')
+    
+    if (nameExists) {
+  const conf = window.confirm(`${newName} already exists, replace number?`)
+  if (!conf) return
+  
+  const existingPerson = persons.find(p => p.name.toLowerCase() === newName.toLowerCase())
+  const updatedPerson = { ...existingPerson, number: newNumber }
+  
+  nameService.update(existingPerson.id, updatedPerson).then(returnedPerson => {
+    setPersons(persons.map(p => p.id === existingPerson.id ? returnedPerson : p))
+  })
+  return
+}
+    nameService.create(personObject).then((response)=>{
+      setPersons(persons.concat(response))
+      setNewName('')
+      setNewNumber('')
+    })
+    
   }
 
   const handleNameChange = (event) => {
@@ -40,11 +54,23 @@ const App = () => {
   const handleNumberChange = (event) => {
     setNewNumber(event.target.value)
   }
-
+  
   const handleFilterChange = (event) => {
     setFilter(event.target.value)
   }
+ const handleDel = (id)=>{
+  const conf = window.confirm(`wana del ${id}`)
+  if( conf){
+    nameService.del(id)
 
+    const newPerson = persons.filter((person)=> {
+    return id !== person.id 
+    })
+
+    setPersons(newPerson)
+  } 
+  
+ }
   // Filter the persons array based on the search input
   const personsToShow = filter === ''
     ? persons
@@ -73,7 +99,10 @@ const App = () => {
       <h3>Numbers</h3>
       <ul>
         {personsToShow.map(person => 
-          <li key={person.id}>{person.name} {person.number}</li>
+          <li key={person.id}> {person.name} {person.number} 
+          <button onClick={()=>handleDel(person.id)}>delete</button>
+          </li>
+          
         )}
       </ul>
     </div>
