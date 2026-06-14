@@ -6,7 +6,6 @@ app.use(express.json())
 app.use(express.static('dist'))
 dotenv.config()
 
-app.use(cors())
 let notes = [
   {
     id: "1",
