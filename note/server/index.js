@@ -1,6 +1,7 @@
 const express = require('express')
 const cors = require('cors')
 const app = express ()
+const Note = require('./models/note')
 const dotenv = require('dotenv')
 app.use(express.json())  
 app.use(express.static('dist'))
@@ -23,10 +24,6 @@ let notes = [
     important: true
   }
 ]
-
-
-
-
 
 const generateId = () => {
   const maxId = notes.length > 0
