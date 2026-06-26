@@ -1,7 +1,7 @@
 const express = require('express')
 const cors = require('cors')
 const app = express ()
-const Note = require('./models/note')
+const Note = require('./models/notes')
 const dotenv = require('dotenv')
 app.use(express.json())  
 app.use(express.static('dist'))
