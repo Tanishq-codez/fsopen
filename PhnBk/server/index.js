@@ -1,12 +1,24 @@
 const express = require("express");
-const morgan = require("morgan")
-const cors = require ('cors')
+const morgan = require("morgan");
+const cors = require("cors");
 const app = express();
-app.use(express.static('dist'))
+app.use(express.static("dist"));
+const Person = require("./models/person");
+
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message)
+
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' })
+
+  } else if (error.name === 'ValidationError') {
+    return response.status(400).json({ error: error.message })
+  }
+
+  next(error)
+}
 app.use(express.json());
-
-app.use(cors())
-
+app.use(cors());
 let phone = [
   {
     id: "1",
@@ -30,11 +42,21 @@ let phone = [
   },
 ];
 
-morgan.token('body', function (req, res) { return JSON.stringify(req.body)})
-app.use(morgan(':method :url :status :res[content-length] - :response-time ms :body '))
+morgan.token("body", function (req, res) {
+  return JSON.stringify(req.body);
+});
+
+app.use(
+  morgan(
+    ":method :url :status :res[content-length] - :response-time ms :body ",
+  ),
+);
 
 app.get("/api/persons", (req, res) => {
-  res.json(phone);
+  console.log("phonebook:");
+  Person.find({}).then((result) => {
+    res.json(result);
+  });
 });
 
 app.get("/info", (request, response) => {
@@ -58,18 +80,22 @@ app.get("/api/persons/:id", (req, res) => {
   } else res.status(404).end();
 });
 
-app.delete("/api/persons/:id", (req, res) => {
+app.delete("/api/persons/:id", (req, res , next) => {
   const id = req.params.id;
-  phone = phone.filter((person) => {
-    return person.id !== id;
-  });
-  res.status(204).end();
+  Person.findByIdAndDelete(id).then (person=>
+    {if(person){
+      res.status(204).end()
+    }
+     res.status(404).end()
+  }).catch(error => next(error))
+  ;
 });
 
 const generateId = () => {
   return String(Math.floor(Math.random() * 10000));
 };
-app.post("/api/persons", (req, res) => {
+
+app.post("/api/persons", (req, res, next) => {
   const body = req.body;
 
   if (!body.number) {
@@ -82,24 +108,25 @@ app.post("/api/persons", (req, res) => {
       error: "name missing",
     });
   }
-  if (phone.find((p) => p.name === body.name)) {
-    return res.status(400).json({ error: "name must be unique" });
-  }
-  const person = {
+  
+  const person = new Person({
     name: body.name,
     number: body.number,
-    id: generateId(),
-  };
-  phone = phone.concat(person);
-  res.json(person);
+  });
+
+  person.save().then((result) => {
+    res.json(result);
+  }).catch((err)=>next(err));
 });
 
 const unknownEndpoint = (request, response) => {
-  response.status(404).send({ error: 'unknown endpoint' })
-}
+  response.status(404).send({ error: "unknown endpoint" });
+};
 
-app.use(unknownEndpoint)
+app.use(unknownEndpoint);
 
 app.listen(3001, () => {
   console.log("serverPhone started on port 3001");
 });
+
+app.use(errorHandler)

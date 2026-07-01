@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import nameService from "./services/names";
 import Notification from "./components/Notifications";
-import axios from "axios";
+
 const App = () => {
   const [persons, setPersons] = useState(null);
   const [newName, setNewName] = useState("");
@@ -22,15 +22,14 @@ const App = () => {
   const addPerson = (event) => {
     event.preventDefault();
 
-    // Check if the name already exists in the phonebook
     const nameExists = persons.some(
-      (person) => person.name.toLowerCase() === newName.toLowerCase(),
+      (person) => person.name.toLowerCase() === newName.toLowerCase()
     );
 
+    // ✅ Cleaned up: No hardcoded 'id' property here
     const personObject = {
       name: newName,
       number: newNumber,
-      id: persons.length + 1, // Temporary ID generation before server implementation
     };
 
     if (nameExists) {
@@ -38,7 +37,7 @@ const App = () => {
       if (!conf) return;
 
       const existingPerson = persons.find(
-        (p) => p.name.toLowerCase() === newName.toLowerCase(),
+        (p) => p.name.toLowerCase() === newName.toLowerCase()
       );
       const updatedPerson = { ...existingPerson, number: newNumber };
 
@@ -47,59 +46,71 @@ const App = () => {
         .then((returnedPerson) => {
           setPersons(
             persons.map((p) =>
-              p.id === existingPerson.id ? returnedPerson : p,
-            ),
+              p.id === existingPerson.id ? returnedPerson : p
+            )
           );
-          setMsg("number update");
-          setTimeout(() => {
-            setMsg(null);
-          }, 3000);
+          setMsg(`Updated number for ${returnedPerson.name}`);
+          setNewName("");     // ✅ Reset inputs on successful update
+          setNewNumber("");   // ✅ Reset inputs on successful update
+          setTimeout(() => setMsg(null), 3000);
+        })
+        .catch((error) => {
+          setMsg(
+            error.response?.data?.error || error.message || "Request failed"
+          );
+          setTimeout(() => setMsg(null), 3000);
         });
       return;
     }
-    nameService.create(personObject).then((response) => {
-      setPersons(persons.concat(response));
-      setMsg("new person added");
-      setNewName("");
-      setNewNumber("");
-      setTimeout(() => {
-        setMsg(null);
-      }, 3000);
-    });
-  };
-
-  const handleNameChange = (event) => {
-    setNewName(event.target.value);
-  };
-
-  const handleNumberChange = (event) => {
-    setNewNumber(event.target.value);
-  };
-
-  const handleFilterChange = (event) => {
-    setFilter(event.target.value);
-  };
-  const handleDel = (id) => {
-    const conf = window.confirm(`wana del ${id}`);
-    if (conf) {
-      const newPerson = persons.filter((person) => {
-        return id !== person.id;
+    nameService
+      .create(personObject)
+      .then((response) => {
+        setPersons(persons.concat(response));
+        setMsg(`Added ${response.name}`);
+        setNewName("");
+        setNewNumber("");
+        setTimeout(() => setMsg(null), 3000);
+      })
+      .catch((error) => {
+        // ✅ Catches Mongoose validation errors perfectly
+        
+        console.log(error.response?.data?.error || error.message || "Request failed")
+        setMsg(
+          error.response?.data?.error || error.message || "Request failed"
+        );
+        setTimeout(() => setMsg(null), 3000);
       });
+  };
+
+  const handleNameChange = (event) => setNewName(event.target.value);
+  const handleNumberChange = (event) => setNewNumber(event.target.value);
+  const handleFilterChange = (event) => setFilter(event.target.value);
+
+  const handleDel = (id) => {
+    const personToDel = persons.find((p) => p.id === id);
+    if (!personToDel) return;
+
+    const conf = window.confirm(`Delete ${personToDel.name}?`);
+    if (conf) {
       nameService
         .del(id)
-        .then(() => setPersons(newPerson))
+        .then(() => {
+          setPersons(persons.filter((person) => person.id !== id));
+          setMsg(`Deleted ${personToDel.name}`);
+          setTimeout(() => setMsg(null), 3000);
+        })
         .catch((error) => {
           setMsg(error.message || "Unable to delete person");
           setTimeout(() => setMsg(null), 3000);
         });
     }
   };
-  // Filter the persons array based on the search input
+
   const personsToShow =
     filter === ""
       ? persons
       : persons.filter((person) =>
-          person.name.toLowerCase().includes(filter.toLowerCase()),
+          person.name.toLowerCase().includes(filter.toLowerCase())
         );
 
   return (
@@ -127,7 +138,6 @@ const App = () => {
       <ul>
         {personsToShow.map((person) => (
           <li className="note" key={person.id}>
-            {" "}
             {person.name} {person.number}
             <button onClick={() => handleDel(person.id)}>delete</button>
           </li>
